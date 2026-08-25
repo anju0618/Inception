@@ -1,0 +1,20 @@
+body {
+  font-family: system-ui, sans-serif;
+  background: #1a1a2e;
+  color: #eaeaea;
+  display: flex;
+  justify-content: center;
+  padding: 4rem 1rem;
+}
+
+main {
+  max-width: 40rem;
+}
+
+h1 {
+  color: #7dd3fc;
+}
+
+a {
+  color: #7dd3fc;
+}
