@@ -20,4 +20,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh && \
 
 EXPOSE 3306
 
+# 初期化(初回のみ)をentrypoint.shで行い、最後にmariadbdをフォアグラウンド起動する
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

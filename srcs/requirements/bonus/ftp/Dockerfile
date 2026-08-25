@@ -1,5 +1,7 @@
 FROM debian:bookworm-slim
 
+# PAM(pam_shells.so)がログインシェルを/etc/shellsと照合するため、
+# nologinユーザーでもFTPログインできるよう明示的に許可リストへ追加しておく
 RUN apt-get update && \
     apt-get install -y --no-install-recommends vsftpd && \
     rm -rf /var/lib/apt/lists/* && \

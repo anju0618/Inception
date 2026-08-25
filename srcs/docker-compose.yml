@@ -1,22 +1,24 @@
 services:
 
+  # NGINX: インフラへの唯一の入口。443番だけを公開し、TLSv1.2/1.3でしか喋らない。
   nginx:
     build:
       context: ./requirements/nginx
       args:
-        DOMAIN_NAME: ${DOMAIN_NAME}
+        DOMAIN_NAME: ${DOMAIN_NAME}   # ビルド時に証明書のCN/server_nameへ渡す
     image: nginx
     container_name: nginx
-    restart: on-failure
+    restart: on-failure                # クラッシュ時は自動再起動
     ports:
-      - "443:443"
+      - "443:443"                      # ホストに公開するのはこの1ポートだけ
     volumes:
-      - wordpress_data:/var/www/html
+      - wordpress_data:/var/www/html   # WordPressの静的ファイルを直接配信するため共有
     networks:
       - inception
     depends_on:
       - wordpress
 
+  # WordPress + php-fpm。NGINXは同居させない。ホストへポートは公開しない(内部の9000番のみ)。
   wordpress:
     build:
       context: ./requirements/wordpress
@@ -30,16 +32,17 @@ services:
     depends_on:
       - mariadb
     environment:
+      # 非機密設定は.envから、パスワードは値そのものではなく secrets のファイルパスを渡す
       DOMAIN_NAME: ${DOMAIN_NAME}
-      WORDPRESS_DB_HOST: mariadb
+      WORDPRESS_DB_HOST: mariadb                       # コンテナ名でそのままDNS解決できる
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_DB_USER: ${MYSQL_USER}
       WORDPRESS_DB_PASSWORD_FILE: /run/secrets/db_password
       WORDPRESS_TITLE: ${WORDPRESS_TITLE}
-      WORDPRESS_ADMIN_USER: ${WORDPRESS_ADMIN_USER}
+      WORDPRESS_ADMIN_USER: ${WORDPRESS_ADMIN_USER}    # admin/administratorを含まない管理者名
       WORDPRESS_ADMIN_EMAIL: ${WORDPRESS_ADMIN_EMAIL}
       WP_ADMIN_PASSWORD_FILE: /run/secrets/credentials
-      WORDPRESS_USER: ${WORDPRESS_USER}
+      WORDPRESS_USER: ${WORDPRESS_USER}                # 一般ユーザー(2人目)
       WORDPRESS_USER_EMAIL: ${WORDPRESS_USER_EMAIL}
       WP_USER_PASSWORD_FILE: /run/secrets/wp_users_password
       REDIS_HOST: ${REDIS_HOST}
@@ -48,6 +51,7 @@ services:
       - credentials
       - wp_users_password
 
+  # MariaDB。NGINXは同居させない。ホストへポートは公開しない(コンテナ間通信のみ)。
   mariadb:
     build:
       context: ./requirements/mariadb
@@ -67,6 +71,9 @@ services:
       - db_password
       - db_root_password
 
+  # --- ここからボーナス ---
+
+  # Redis: WordPressのオブジェクトキャッシュ用。ホストへは公開しない。
   redis:
     build:
       context: ./requirements/bonus/redis
@@ -76,6 +83,7 @@ services:
     networks:
       - inception
 
+  # FTP: WordPressのボリュームをファイル転送用に公開。21番+パッシブモード用のポート範囲。
   ftp:
     build:
       context: ./requirements/bonus/ftp
@@ -84,9 +92,9 @@ services:
     restart: on-failure
     ports:
       - "21:21"
-      - "21000-21010:21000-21010"
+      - "21000-21010:21000-21010"      # パッシブモードのデータ転送用ポート範囲
     volumes:
-      - wordpress_data:/home/ftpuser/wordpress
+      - wordpress_data:/home/ftpuser/wordpress   # WordPressと同じボリュームを共有
     networks:
       - inception
     environment:
@@ -95,6 +103,7 @@ services:
     secrets:
       - ftp_password
 
+  # Adminer: MariaDBを見るための1ファイルのDB管理ツール。
   adminer:
     build:
       context: ./requirements/bonus/adminer
@@ -106,6 +115,7 @@ services:
     networks:
       - inception
 
+  # 静的サイト: PHPを使わない(Python http.server製)ボーナス用サイト。
   static-site:
     build:
       context: ./requirements/bonus/static-site
@@ -117,6 +127,7 @@ services:
     networks:
       - inception
 
+  # backup: 自由選択のボーナス。cronでMariaDBを定期的にダンプする。
   backup:
     build:
       context: ./requirements/bonus/backup
@@ -138,10 +149,13 @@ services:
     secrets:
       - db_password
 
+# コンテナ同士を繋ぐ専用ブリッジネットワーク(network: host / --link は使用しない)
 networks:
   inception:
     driver: bridge
 
+# 名前付きボリューム。driver_optsでホストの/home/<login>/data配下に実体を固定している
+# (bind mountではなく、あくまで名前付きボリュームとしてホストパスに紐付けている点がポイント)
 volumes:
   wordpress_data:
     driver: local
@@ -162,6 +176,8 @@ volumes:
       o: bind
       device: ${DATA_PATH}/backups
 
+# Docker secrets。実体は secrets/*.txt (gitignore対象)。コンテナ内には
+# /run/secrets/<name> というファイルとしてのみ見える(環境変数には出ない)。
 secrets:
   db_password:
     file: ../secrets/db_password.txt

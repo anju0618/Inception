@@ -8,4 +8,5 @@ COPY conf/redis.conf /etc/redis/redis.conf
 
 EXPOSE 6379
 
+# 設定ファイルを渡してフォアグラウンド起動するだけ(初期化処理は不要)
 ENTRYPOINT ["redis-server", "/etc/redis/redis.conf"]

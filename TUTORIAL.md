@@ -398,6 +398,41 @@ docker compose -f srcs/docker-compose.yml exec mariadb sh -c \
   "SELECT comment_ID, comment_author, comment_content FROM wp_comments ORDER BY comment_ID DESC LIMIT 5;"'
 ```
 
+### 5-2. 管理画面での変更が実際のサイトに反映されるか確認する
+
+これも評価でそのまま試される定番の操作です。「管理画面(裏側)で行った変更が、
+本当に公開側(表側)のサイトに反映されるか」を確認します。
+
+1. `https://amakino.42.fr/wp-admin`に管理者(`wp_owner`)でログインする。
+2. 左メニューの「固定ページ」→「Sample Page」(インストール直後にデフォルトで
+   存在する固定ページ)を開き、本文を適当に書き換えて「更新」を押す。
+3. ブラウザの別タブで`https://amakino.42.fr/sample-page/`(または「表示」ボタン)を
+   開き、さっき書いた内容が実際に反映されていることを確認する。
+
+これで「管理画面での操作 → DBへの保存 → 公開ページへの反映」という一連の流れが
+本当に機能していることが確認できます。
+
+### 5-3. MariaDBのrootが「パスワード無し」でログインできないことを確認する
+
+これは評価者が必ずと言っていいほど試す、代表的なセキュリティチェックです。
+「パスワードを設定したつもり」でも、設定漏れがあると痛い目に遭う実例が
+実際にこのプロジェクトでも見つかりました(`memo.md`の12.5参照)。
+
+```sh
+# mariadbコンテナの中で、パスワード無しでrootログインを試す
+docker compose -f srcs/docker-compose.yml exec mariadb sh -c "mysql -u root -e 'SELECT 1;'"
+
+# コンテナ名(ホスト名)経由でも試す
+docker compose -f srcs/docker-compose.yml exec mariadb sh -c \
+  "mysql -h \$(hostname) -u root -e 'SELECT 1;'"
+```
+
+どちらも`ERROR 1045 (28000): Access denied for user 'root'@'...' (using password: NO)`
+というエラーで**拒否されるのが正解**です。もし片方でも成功してしまったら、
+`mysql.user`テーブルにパスワード未設定のrootアカウントが残っている証拠なので、
+`memo.md`の12.5にある対策(`DELETE FROM mysql.user WHERE User = 'root' AND Host !=
+'localhost';`)が正しく効いているか確認してください。
+
 ---
 
 ## 6. 止める・作り直すの違い
