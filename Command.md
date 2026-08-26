@@ -8,7 +8,7 @@
 VBoxManage list runningvms
 VBoxManage startvm Inception-VM --type headless
 
-# SSH接続
+# SSH
 ssh -i /goinfre/amakino/Inception/vm/inception_vm_ed25519 -p 2222 amakino@127.0.0.1
 # PW
 cat /goinfre/amakino/Inception/vm/vm-password.txt

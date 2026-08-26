@@ -1,0 +1,11 @@
+docker exec -it mariaDb /bin/bash
+
+mysql -u root -p
+
+SHOW DATABASES;
+
+USE wp_users;
+
+SHOW TABLES;
+
+SELECT * FROM wp_users;
